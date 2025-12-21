@@ -133,10 +133,79 @@ curl -X POST http://localhost:8080/repositories/batch \
 - `POST /repository` - Process a single repository
 - `POST /repositories/batch` - Process multiple repositories in batch
 
+### Cloud Provider Operations
+- `GET /cloud/providers` - List supported cloud providers
+- `POST /cloud/register` - Register and authenticate a cloud provider
+- `POST /cloud/instances` - Create a new VPS instance
+- `GET /cloud/instances/{provider}` - List instances for a provider
+- `DELETE /cloud/instances/{provider}/{instance_id}` - Terminate an instance
+
 ### Supported Operations
 - `clone_and_analyze` - Clone and analyze repository structure
 - `run_tests` - Detect and run repository tests
 - `scan` - Run security/code scans (custom or default)
+
+## Cloud Provider API
+
+The orchestrator supports multiple cloud providers for provisioning VPS instances to run CodeRunner faster.
+
+### Supported Providers
+- **AWS** (Amazon Web Services) - EC2 instances
+- **Azure** (Microsoft Azure) - Virtual Machines
+- **GCP** (Google Cloud Platform) - Compute Engine
+- **DigitalOcean** - Droplets (coming soon)
+- **Linode** - Linodes (coming soon)
+
+### Register a Cloud Provider
+
+```bash
+# Register AWS provider
+curl -X POST http://localhost:8080/cloud/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "aws",
+    "credentials": {
+      "access_key_id": "YOUR_ACCESS_KEY",
+      "secret_access_key": "YOUR_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### Create a VPS Instance
+
+```bash
+# Create a medium-sized instance for CodeRunner
+curl -X POST http://localhost:8080/cloud/instances \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "aws",
+    "name": "my-coderunner",
+    "size": "medium",
+    "region": "us-east-1"
+  }'
+```
+
+### Instance Sizes
+
+| Size | vCPU | Memory | Use Case |
+|------|------|--------|----------|
+| small | 2 | 4GB | Light workloads |
+| medium | 4 | 8GB | Standard workloads |
+| large | 8 | 16GB | Heavy workloads |
+| xlarge | 16 | 32GB | Enterprise workloads |
+
+### List Instances
+
+```bash
+curl http://localhost:8080/cloud/instances/aws
+```
+
+### Terminate Instance
+
+```bash
+curl -X DELETE http://localhost:8080/cloud/instances/aws/i-1234567890abcdef0
+```
 
 ## Configuration
 
@@ -147,6 +216,25 @@ Environment variables can be set in `docker-compose.yml` or `.env` file:
 - `CODERUNNER_PORT`: CodeRunner service port
 - `PYTHONUNBUFFERED`: Enable unbuffered Python output
 - `GITHUB_TOKEN`: GitHub personal access token for authenticated API access (optional)
+
+### Cloud Provider Credentials
+
+Set credentials via environment variables or pass them in API requests:
+
+**AWS:**
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_DEFAULT_REGION`
+
+**Azure:**
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_TENANT_ID`
+
+**GCP:**
+- `GOOGLE_CLOUD_PROJECT`
+- `GOOGLE_APPLICATION_CREDENTIALS` (path to service account JSON)
 
 ## VPS/Production Deployment
 

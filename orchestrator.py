@@ -128,7 +128,8 @@ def execute_in_sandbox(code: str, language: str, timeout: int) -> Dict[str, Any]
     Args:
         code: Code to execute
         language: Programming language
-        timeout: Execution timeout in seconds
+        timeout: Execution timeout in seconds (Note: timeout enforcement requires 
+                 additional implementation as docker.exec_run doesn't natively support it)
         
     Returns:
         Dict with execution results
@@ -155,23 +156,25 @@ def execute_in_sandbox(code: str, language: str, timeout: int) -> Dict[str, Any]
                 "error": f"Language {language} not supported"
             }
         
-        # Run code in container
+        # Run code in container with timeout
         exec_result = container.exec_run(
             exec_command,
             demux=True,
-            environment={"PYTHONUNBUFFERED": "1"}
+            environment={"PYTHONUNBUFFERED": "1"},
+            stream=False
         )
         
-        # Parse results
-        stdout = exec_result.output[0].decode() if exec_result.output[0] else ""
-        stderr = exec_result.output[1].decode() if exec_result.output[1] else ""
+        # Parse results with safety checks
+        output_tuple = exec_result.output if exec_result.output else (None, None)
+        stdout = output_tuple[0].decode() if output_tuple[0] else ""
+        stderr = output_tuple[1].decode() if output_tuple[1] else ""
         
         success = exec_result.exit_code == 0
         
         return {
             "success": success,
-            "output": stdout if success else stderr,
-            "error": stderr if not success else None
+            "output": stdout,
+            "error": stderr if stderr else None
         }
         
     except Exception as e:

@@ -135,6 +135,33 @@ class CloudInstanceResponse(BaseModel):
     error: Optional[str] = None
 
 
+# Helper function to get provider enum from string
+def get_provider_enum(provider_name: str):
+    """Convert provider string to CloudProvider enum"""
+    if not cloud_providers_available:
+        return None
+    provider_map = {
+        "aws": CloudProvider.AWS,
+        "azure": CloudProvider.AZURE,
+        "gcp": CloudProvider.GCP,
+    }
+    return provider_map.get(provider_name.lower())
+
+
+# Helper function to get instance size enum from string
+def get_instance_size_enum(size_name: str):
+    """Convert size string to InstanceSize enum"""
+    if not cloud_providers_available:
+        return None
+    size_map = {
+        "small": InstanceSize.SMALL,
+        "medium": InstanceSize.MEDIUM,
+        "large": InstanceSize.LARGE,
+        "xlarge": InstanceSize.XLARGE,
+    }
+    return size_map.get(size_name.lower())
+
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -750,20 +777,15 @@ async def register_cloud_provider(request: CloudProviderRegisterRequest):
         )
     
     try:
-        provider_map = {
-            "aws": CloudProvider.AWS,
-            "azure": CloudProvider.AZURE,
-            "gcp": CloudProvider.GCP,
-        }
+        provider = get_provider_enum(request.provider)
         
-        if request.provider.lower() not in provider_map:
+        if provider is None:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported provider: {request.provider}. Supported: aws, azure, gcp"
             )
         
         cloud_manager = get_cloud_manager()
-        provider = provider_map[request.provider.lower()]
         
         success = cloud_manager.register_provider(provider, request.credentials)
         
@@ -805,34 +827,22 @@ async def create_cloud_instance(request: CloudInstanceRequest):
         )
     
     try:
-        provider_map = {
-            "aws": CloudProvider.AWS,
-            "azure": CloudProvider.AZURE,
-            "gcp": CloudProvider.GCP,
-        }
+        provider = get_provider_enum(request.provider)
+        size = get_instance_size_enum(request.size)
         
-        size_map = {
-            "small": InstanceSize.SMALL,
-            "medium": InstanceSize.MEDIUM,
-            "large": InstanceSize.LARGE,
-            "xlarge": InstanceSize.XLARGE,
-        }
-        
-        if request.provider.lower() not in provider_map:
+        if provider is None:
             return CloudInstanceResponse(
                 success=False,
                 error=f"Unsupported provider: {request.provider}"
             )
         
-        if request.size.lower() not in size_map:
+        if size is None:
             return CloudInstanceResponse(
                 success=False,
                 error=f"Invalid size: {request.size}. Use: small, medium, large, xlarge"
             )
         
         cloud_manager = get_cloud_manager()
-        provider = provider_map[request.provider.lower()]
-        size = size_map[request.size.lower()]
         
         result = cloud_manager.create_coderunner_instance(
             provider=provider,
@@ -875,20 +885,15 @@ async def list_cloud_instances(provider: str):
         )
     
     try:
-        provider_map = {
-            "aws": CloudProvider.AWS,
-            "azure": CloudProvider.AZURE,
-            "gcp": CloudProvider.GCP,
-        }
+        provider_enum = get_provider_enum(provider)
         
-        if provider.lower() not in provider_map:
+        if provider_enum is None:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported provider: {provider}"
             )
         
         cloud_manager = get_cloud_manager()
-        provider_enum = provider_map[provider.lower()]
         provider_instance = cloud_manager.get_provider(provider_enum)
         
         if not provider_instance:
@@ -932,20 +937,15 @@ async def terminate_cloud_instance(provider: str, instance_id: str):
         )
     
     try:
-        provider_map = {
-            "aws": CloudProvider.AWS,
-            "azure": CloudProvider.AZURE,
-            "gcp": CloudProvider.GCP,
-        }
+        provider_enum = get_provider_enum(provider)
         
-        if provider.lower() not in provider_map:
+        if provider_enum is None:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported provider: {provider}"
             )
         
         cloud_manager = get_cloud_manager()
-        provider_enum = provider_map[provider.lower()]
         provider_instance = cloud_manager.get_provider(provider_enum)
         
         if not provider_instance:

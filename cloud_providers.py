@@ -197,8 +197,10 @@ class AWSProvider(CloudProviderBase):
             
             instance_type = INSTANCE_SIZE_MAPPINGS[self.PROVIDER][size]
             
-            # Default to Ubuntu 22.04 with Docker AMI (us-east-1)
-            # In production, use SSM Parameter Store to get latest AMI
+            # Default to Ubuntu 22.04 LTS AMI for us-east-1 region
+            # NOTE: AMI IDs are region-specific and may change over time
+            # For production, use AWS SSM Parameter Store:
+            # /aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id
             ami_id = image or "ami-0c7217cdde317cfec"
             
             # User data script to install Docker
@@ -349,7 +351,7 @@ class AzureProvider(CloudProviderBase):
         region: str,
         image: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Create an Azure VM for CodeRunner"""
+        """Create an Azure VM for CodeRunner (placeholder - requires full implementation)"""
         try:
             if not self._client:
                 return {"success": False, "error": "Not authenticated"}
@@ -357,15 +359,21 @@ class AzureProvider(CloudProviderBase):
             vm_size = INSTANCE_SIZE_MAPPINGS[self.PROVIDER][size]
             resource_group = self.credentials.get("resource_group", "orchestrator-rg")
             
-            # Note: Full Azure VM creation requires network, storage setup
-            # This is a simplified representation
+            # NOTE: This is a placeholder implementation
+            # Full Azure VM creation requires:
+            # 1. Resource Group creation
+            # 2. Virtual Network and Subnet setup
+            # 3. Network Interface creation
+            # 4. Public IP allocation
+            # 5. VM creation with all dependencies
+            # See Azure SDK documentation for complete implementation
             return {
-                "success": True,
-                "instance_id": f"azure-{name}",
+                "success": False,
+                "error": "Azure VM creation not fully implemented",
                 "provider": self.PROVIDER.value,
                 "vm_size": vm_size,
                 "region": region,
-                "note": "Azure VM creation requires additional network/storage setup"
+                "note": "Azure requires additional network/storage setup. See documentation."
             }
             
         except Exception as e:
@@ -373,26 +381,27 @@ class AzureProvider(CloudProviderBase):
             return {"success": False, "error": str(e)}
     
     def terminate_instance(self, instance_id: str) -> bool:
-        """Terminate an Azure VM"""
+        """Terminate an Azure VM (placeholder - requires full implementation)"""
         try:
             if not self._client:
                 return False
             
-            resource_group = self.credentials.get("resource_group", "orchestrator-rg")
+            # NOTE: Placeholder - actual implementation would use:
+            # resource_group = self.credentials.get("resource_group", "orchestrator-rg")
             # self._client.virtual_machines.begin_delete(resource_group, instance_id)
-            logger.info(f"Terminated Azure VM: {instance_id}")
-            return True
+            logger.warning(f"Azure VM termination not fully implemented for: {instance_id}")
+            return False
             
         except Exception as e:
             logger.error(f"Failed to terminate Azure VM: {e}")
             return False
     
     def get_instance_status(self, instance_id: str) -> Dict[str, Any]:
-        """Get Azure VM status"""
-        return {"success": True, "instance_id": instance_id, "state": "unknown"}
+        """Get Azure VM status (placeholder)"""
+        return {"success": False, "instance_id": instance_id, "state": "unknown", "note": "Not implemented"}
     
     def list_instances(self, tags: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
-        """List Azure VMs"""
+        """List Azure VMs (placeholder)"""
         return []
 
 
@@ -430,7 +439,7 @@ class GCPProvider(CloudProviderBase):
         region: str,
         image: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Create a GCP Compute Engine instance for CodeRunner"""
+        """Create a GCP Compute Engine instance for CodeRunner (placeholder - requires full implementation)"""
         try:
             if not self._client:
                 return {"success": False, "error": "Not authenticated"}
@@ -438,13 +447,19 @@ class GCPProvider(CloudProviderBase):
             machine_type = INSTANCE_SIZE_MAPPINGS[self.PROVIDER][size]
             zone = f"{region}-a"  # Default to zone 'a'
             
+            # NOTE: This is a placeholder implementation
+            # Full GCP instance creation requires:
+            # 1. Network and subnet configuration
+            # 2. Disk configuration
+            # 3. Instance template or full instance config
+            # See google-cloud-compute documentation for complete implementation
             return {
-                "success": True,
-                "instance_id": f"gcp-{name}",
+                "success": False,
+                "error": "GCP instance creation not fully implemented",
                 "provider": self.PROVIDER.value,
                 "machine_type": machine_type,
                 "zone": zone,
-                "note": "GCP instance creation placeholder"
+                "note": "GCP requires additional network/disk setup. See documentation."
             }
             
         except Exception as e:
@@ -452,12 +467,13 @@ class GCPProvider(CloudProviderBase):
             return {"success": False, "error": str(e)}
     
     def terminate_instance(self, instance_id: str) -> bool:
-        """Terminate a GCP instance"""
-        return True
+        """Terminate a GCP instance (placeholder - requires full implementation)"""
+        logger.warning(f"GCP instance termination not fully implemented for: {instance_id}")
+        return False
     
     def get_instance_status(self, instance_id: str) -> Dict[str, Any]:
-        """Get GCP instance status"""
-        return {"success": True, "instance_id": instance_id, "state": "unknown"}
+        """Get GCP instance status (placeholder)"""
+        return {"success": False, "instance_id": instance_id, "state": "unknown", "note": "Not implemented"}
     
     def list_instances(self, tags: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
         """List GCP instances"""

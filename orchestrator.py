@@ -337,6 +337,42 @@ def execute_in_sandbox(code: str, language: str, timeout: int) -> Dict[str, Any]
         }
 
 
+def validate_repo_url(repo_url: str) -> bool:
+    """
+    Validate repository URL to ensure it's from trusted sources
+    
+    Args:
+        repo_url: Repository URL to validate
+        
+    Returns:
+        True if URL is valid and trusted, False otherwise
+    """
+    try:
+        # Allow GitHub, GitLab, and Bitbucket URLs
+        trusted_domains = [
+            "github.com",
+            "gitlab.com",
+            "bitbucket.org"
+        ]
+        
+        # Check if URL starts with https
+        if not repo_url.startswith("https://"):
+            logger.warning(f"Repository URL must use HTTPS: {repo_url}")
+            return False
+        
+        # Check if domain is trusted
+        for domain in trusted_domains:
+            if domain in repo_url:
+                return True
+        
+        logger.warning(f"Repository URL from untrusted domain: {repo_url}")
+        return False
+        
+    except Exception as e:
+        logger.error(f"URL validation failed: {e}")
+        return False
+
+
 def process_single_repository(
     repo_url: str, 
     operation: str, 
@@ -357,8 +393,15 @@ def process_single_repository(
     """
     temp_dir = None
     try:
-        # Create temporary directory for repo
-        temp_dir = tempfile.mkdtemp(prefix="repo_")
+        # Validate repository URL
+        if not validate_repo_url(repo_url):
+            return {
+                "success": False,
+                "error": "Invalid or untrusted repository URL"
+            }
+        
+        # Create secure temporary directory for repo
+        temp_dir = tempfile.mkdtemp(prefix="repo_", dir="/tmp")
         logger.info(f"Cloning {repo_url} to {temp_dir}")
         
         # Clone repository
@@ -448,7 +491,7 @@ def analyze_repository(repo_path: str) -> Dict[str, Any]:
                 try:
                     size = os.path.getsize(file_path)
                     analysis["total_size"] += size
-                except:
+                except (OSError, IOError):
                     pass
                 
                 analysis["files"].append(rel_path)
@@ -584,16 +627,23 @@ def run_command_in_sandbox(repo_path: str, command: str) -> Dict[str, Any]:
                 "error": "CodeRunner sandbox not available"
             }
         
-        # Copy files to container (simplified - in production use volumes)
+        # Execute command in container workdir
+        # Note: In production, use volume mounts to share repository files
         exec_result = container.exec_run(
             ["sh", "-c", command],
             demux=True,
             workdir="/workspace"
         )
         
+        # Parse output with safety checks
         output_tuple = exec_result.output if exec_result.output else (None, None)
-        stdout = output_tuple[0].decode() if output_tuple[0] else ""
-        stderr = output_tuple[1].decode() if output_tuple[1] else ""
+        if isinstance(output_tuple, tuple) and len(output_tuple) >= 2:
+            stdout = output_tuple[0].decode() if output_tuple[0] else ""
+            stderr = output_tuple[1].decode() if output_tuple[1] else ""
+        else:
+            # Fallback if output is not a tuple
+            stdout = str(exec_result.output) if exec_result.output else ""
+            stderr = ""
         
         return {
             "success": exec_result.exit_code == 0,

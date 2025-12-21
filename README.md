@@ -74,6 +74,11 @@ pip install -r requirements.txt
 python orchestrator.py
 ```
 
+4. Run the Python desktop UI (optional):
+```bash
+python pricing_monitor_ui.py
+```
+
 ## API Usage
 
 ### Health Check
@@ -123,10 +128,28 @@ curl -X POST http://localhost:8080/repositories/batch \
 
 ### Cloud Pricing Monitor
 
-Access the pricing monitor UI:
+#### Python Desktop UI
+
+Run the standalone Python desktop application:
+```bash
+python pricing_monitor_ui.py
+```
+
+This launches a tkinter-based GUI with:
+- Real-time price monitoring across 10 cloud providers
+- Price threshold configuration with auto-launch
+- Visual price comparison with sorting
+- Activity logging
+- One-click instance launching
+
+#### Web UI
+
+Access the web-based pricing monitor UI:
 ```
 http://localhost:8080/pricing/ui
 ```
+
+#### API Access
 
 Get current prices:
 ```bash
@@ -227,11 +250,12 @@ The CodeRunner sandbox container is configured with:
 Orchestrator/
 ├── orchestrator.py           # Main orchestrator application
 ├── cloud_pricing_monitor.py  # Cloud pricing monitor module
+├── pricing_monitor_ui.py     # Python desktop UI (tkinter)
 ├── requirements.txt          # Python dependencies
 ├── Dockerfile               # Orchestrator container definition
 ├── docker-compose.yml       # Multi-container setup
 ├── static/                  # Web UI files
-│   └── index.html          # Pricing monitor UI
+│   └── index.html          # Web-based pricing monitor UI
 ├── .gitignore              # Git ignore patterns
 └── README.md               # This file
 ```

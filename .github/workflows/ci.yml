@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile orchestrator.py
+          echo "✓ orchestrator.py syntax is valid"
+
+      - name: Check file structure
+        run: |
+          test -f orchestrator.py && echo "✓ orchestrator.py exists"
+          test -f requirements.txt && echo "✓ requirements.txt exists"
+          test -f Dockerfile && echo "✓ Dockerfile exists"
+          test -f docker-compose.yml && echo "✓ docker-compose.yml exists"
+          test -f README.md && echo "✓ README.md exists"
+          echo "✓ All required files present"

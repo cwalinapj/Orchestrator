@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 # Price alert threshold: alert when price is more than 33% below median
 PRICE_ALERT_THRESHOLD = 0.33
 
-# Maximum age for SOC computers to monitor (2 years)
-MAX_PRODUCT_AGE_YEARS = 2
+# Maximum age for SOC computers to monitor (2 years, accounting for leap years)
+MAX_PRODUCT_AGE_DAYS = 730  # Approximately 2 years
 
 
 @dataclass
@@ -43,7 +43,7 @@ class SOCComputer:
     
     def is_within_age_limit(self) -> bool:
         """Check if product was released within the last 2 years"""
-        cutoff_date = datetime.now() - timedelta(days=MAX_PRODUCT_AGE_YEARS * 365)
+        cutoff_date = datetime.now() - timedelta(days=MAX_PRODUCT_AGE_DAYS)
         return self.release_date >= cutoff_date
 
 
@@ -206,13 +206,6 @@ SOC_COMPUTERS = [
         manufacturer="Raspberry Pi Foundation",
         release_date=datetime(2024, 11, 1),
         msrp_usd=90.00,
-        is_compute_module=False
-    ),
-    SOCComputer(
-        name="Raspberry Pi Zero 2 W",
-        manufacturer="Raspberry Pi Foundation",
-        release_date=datetime(2024, 1, 1),  # Continued availability
-        msrp_usd=15.00,
         is_compute_module=False
     ),
     # Orange Pi
@@ -436,7 +429,7 @@ def get_eligible_products() -> list[SOCComputer]:
             logger.debug(f"Excluding compute module: {product.name}")
             continue
         if not product.is_within_age_limit():
-            logger.debug(f"Excluding product older than {MAX_PRODUCT_AGE_YEARS} years: {product.name}")
+            logger.debug(f"Excluding product older than {MAX_PRODUCT_AGE_DAYS} days: {product.name}")
             continue
         eligible.append(product)
     
@@ -534,8 +527,10 @@ def process_prices(price_data_list: list[PriceData]) -> list[str]:
         # Extract numeric prices
         prices = [p.price_usd for p in product_prices if p.in_stock]
         
+        # Need at least 2 prices to calculate a meaningful median comparison
+        # A single price cannot be compared against a baseline
         if len(prices) < 2:
-            logger.debug(f"Not enough prices to calculate median for {product_name}")
+            logger.debug(f"Need at least 2 prices to calculate median for {product_name}")
             continue
         
         median_price = calculate_median_price(prices)
@@ -557,8 +552,8 @@ def process_prices(price_data_list: list[PriceData]) -> list[str]:
                 alerts.append(alert)
                 logger.info(f"Deal found: {product_name} at {price_data.retailer}")
     
-    # Clear price data from memory (explicit cleanup)
-    price_data_list.clear()
+    # Note: Price data is not stored; the caller's list is not modified
+    # Python's garbage collection will handle cleanup when references go out of scope
     
     return alerts
 
@@ -606,7 +601,7 @@ def run_price_monitor():
         "eligible_products": len(eligible_products),
         "retailers_monitored": len(TOP_US_RETAILERS),
         "alert_threshold": f"{PRICE_ALERT_THRESHOLD * 100}%",
-        "max_product_age": f"{MAX_PRODUCT_AGE_YEARS} years"
+        "max_product_age": f"{MAX_PRODUCT_AGE_DAYS} days (~2 years)"
     }
 
 

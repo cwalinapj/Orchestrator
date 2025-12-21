@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CODERUNNER_HOST=coderunner
+      - CODERUNNER_PORT=50051
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - orchestrator-network
+
+  coderunner:
+    image: python:3.11-slim
+    container_name: coderunner-sandbox
+    command: tail -f /dev/null
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./sandbox:/workspace
+    restart: unless-stopped
+    networks:
+      - orchestrator-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+
+networks:
+  orchestrator-network:
+    driver: bridge
+
+volumes:
+  data:

@@ -1,8 +1,21 @@
 #!/bin/bash
-# Validation script for the Orchestrator repository
-# This script must be run before any task is considered complete
+#
+# validate_all.sh - Repository validation script for the Orchestrator
+#
+# Description:
+#   This script validates that the repository meets all required invariants
+#   before any task is considered complete. It must be run as part of the
+#   preflight process by AI agents operating in this repository.
+#
+# Usage:
+#   ./scripts/validate_all.sh
+#
+# Exit Codes:
+#   0 - All validations passed
+#   1 - Validation failed (missing files or invalid structure)
+#
 
-set -e
+set -euo pipefail
 
 echo "=== Running Repository Validation ==="
 

@@ -1,0 +1,48 @@
+# Docker Compose override for VPS/Production deployment
+# Use with: docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d
+#
+# This configuration provides enhanced resources for faster CodeRunner execution
+# on VPS or cloud instances with more CPU/memory available.
+
+version: '3.8'
+
+services:
+  orchestrator:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # Enable container health checks
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  coderunner:
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    # Use tmpfs for even faster I/O on VPS
+    volumes:
+      - ./sandbox:/workspace
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1G
+      - type: tmpfs
+        target: /var/cache
+        tmpfs:
+          size: 512M
+    # Increase shared memory for parallel processing
+    shm_size: '1gb'

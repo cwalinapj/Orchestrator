@@ -148,6 +148,38 @@ Environment variables can be set in `docker-compose.yml` or `.env` file:
 - `PYTHONUNBUFFERED`: Enable unbuffered Python output
 - `GITHUB_TOKEN`: GitHub personal access token for authenticated API access (optional)
 
+## VPS/Production Deployment
+
+For faster CodeRunner execution on VPS or cloud instances, use the enhanced configuration:
+
+```bash
+# Standard deployment with VPS optimizations
+docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d
+```
+
+### VPS Resource Allocations
+
+The VPS configuration (`docker-compose.vps.yml`) provides:
+
+| Service | CPU Limit | Memory Limit | Description |
+|---------|-----------|--------------|-------------|
+| orchestrator | 4 cores | 4GB | API and orchestration |
+| coderunner | 8 cores | 8GB | Code execution sandbox |
+
+### Performance Optimizations
+
+- **tmpfs mounts**: Faster I/O for temporary files
+- **Shared memory**: Increased to 1GB for parallel processing
+- **Health checks**: Automatic container health monitoring
+- **BuildKit**: Enabled for faster Docker builds
+
+### Recommended VPS Specifications
+
+For optimal performance:
+- **Minimum**: 4 vCPU, 8GB RAM
+- **Recommended**: 8 vCPU, 16GB RAM
+- **Storage**: SSD with at least 50GB free space
+
 ## Security
 
 The CodeRunner sandbox container is configured with:
@@ -155,6 +187,23 @@ The CodeRunner sandbox container is configured with:
 - No new privileges
 - Isolated network
 - Resource limits
+
+## CI/CD
+
+This repository includes GitHub Actions workflows for automated builds and tests:
+
+- **CI Pipeline** (`.github/workflows/ci.yml`): Builds Docker images with caching and runs health checks
+
+### Using Larger Runners
+
+For faster CI builds, you can configure larger GitHub-hosted runners or self-hosted runners:
+
+```yaml
+# In .github/workflows/ci.yml
+runs-on: ubuntu-latest-8-cores  # Use 8-core runner
+# or
+runs-on: [self-hosted, linux, x64]  # Use self-hosted runner
+```
 
 ## Development
 
@@ -166,6 +215,8 @@ Orchestrator/
 ├── requirements.txt     # Python dependencies
 ├── Dockerfile          # Orchestrator container definition
 ├── docker-compose.yml  # Multi-container setup
+├── docker-compose.vps.yml  # VPS/Production overrides
+├── .github/workflows/  # CI/CD pipelines
 ├── .gitignore         # Git ignore patterns
 └── README.md          # This file
 ```

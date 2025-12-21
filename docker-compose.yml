@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Enable BuildKit for faster builds
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: ai-orchestrator
     ports:
       - "8080:8080"
@@ -19,6 +22,15 @@ services:
     restart: unless-stopped
     networks:
       - orchestrator-network
+    # Resource limits for VPS/cloud deployment
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   coderunner:
     image: python:3.11-slim
@@ -29,6 +41,11 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./sandbox:/workspace
+      # Use tmpfs for faster I/O in sandbox
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 256M
     restart: unless-stopped
     networks:
       - orchestrator-network
@@ -40,6 +57,15 @@ services:
       - CHOWN
       - SETUID
       - SETGID
+    # Resource limits for faster execution
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
 
 networks:
   orchestrator-network:

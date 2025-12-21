@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Restrict GITHUB_TOKEN permissions for security
+permissions:
+  contents: read
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    # Use larger runner for faster Docker builds
+    # Options: ubuntu-latest (2 vCPU), ubuntu-latest-4-cores, ubuntu-latest-8-cores, ubuntu-latest-16-cores
+    # For self-hosted runners, use labels like: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
+    
+    # Performance optimizations
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Docker image with cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: ai-orchestrator:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Start services with Docker Compose
+        run: |
+          docker compose up -d --build
+          sleep 10
+
+      - name: Health check
+        run: |
+          curl --fail --retry 5 --retry-delay 2 http://localhost:8080/health || exit 1
+
+      - name: Run basic tests
+        run: |
+          # Test root endpoint
+          curl -s http://localhost:8080/ | grep -q "AI Orchestrator"
+          echo "Root endpoint check passed"
+          
+          # Test health endpoint
+          curl -s http://localhost:8080/health | grep -q "healthy"
+          echo "Health check passed"
+
+      - name: View container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+  # Job for larger runners (commented out - enable when larger runners are available)
+  # build-large-runner:
+  #   name: Build on Large Runner
+  #   runs-on: ubuntu-latest-8-cores  # or your self-hosted runner label
+  #   steps:
+  #     # Same steps as above, but runs faster on larger runner

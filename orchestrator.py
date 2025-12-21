@@ -3,6 +3,7 @@
 AI Orchestrator with CodeRunner Base
 Orchestrates AI tasks and executes code in a sandboxed environment
 Supports multi-repository operations for cloning, analyzing, and running code
+Supports cloud provider APIs (AWS, Azure, GCP) for VPS provisioning
 """
 
 import os
@@ -17,6 +18,16 @@ import docker
 from github import Github, GithubException
 from git import Repo, GitCommandError
 
+# Import cloud providers module
+try:
+    from cloud_providers import (
+        CloudProvider, InstanceSize, get_cloud_manager,
+        CloudProviderManager
+    )
+    cloud_providers_available = True
+except ImportError:
+    cloud_providers_available = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -27,8 +38,8 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="AI Orchestrator",
-    description="Orchestrator for AI tasks with CodeRunner base - supports multi-repository operations",
-    version="2.0.0"
+    description="Orchestrator for AI tasks with CodeRunner base - supports multi-repository operations and cloud provider APIs",
+    version="2.1.0"
 )
 
 # Docker client for CodeRunner interactions
@@ -100,18 +111,71 @@ class RepositoryBatchResponse(BaseModel):
     results: List[RepositoryResponse]
 
 
+# Cloud Provider Models
+class CloudProviderRegisterRequest(BaseModel):
+    """Request model for registering a cloud provider"""
+    provider: str  # aws, azure, gcp, digitalocean, linode
+    credentials: Optional[Dict[str, str]] = None
+
+
+class CloudInstanceRequest(BaseModel):
+    """Request model for creating a cloud instance"""
+    provider: str
+    name: str
+    size: str = "medium"  # small, medium, large, xlarge
+    region: Optional[str] = None
+
+
+class CloudInstanceResponse(BaseModel):
+    """Response model for cloud instance operations"""
+    success: bool
+    instance_id: Optional[str] = None
+    provider: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+# Helper function to get provider enum from string
+def get_provider_enum(provider_name: str):
+    """Convert provider string to CloudProvider enum"""
+    if not cloud_providers_available:
+        return None
+    provider_map = {
+        "aws": CloudProvider.AWS,
+        "azure": CloudProvider.AZURE,
+        "gcp": CloudProvider.GCP,
+    }
+    return provider_map.get(provider_name.lower())
+
+
+# Helper function to get instance size enum from string
+def get_instance_size_enum(size_name: str):
+    """Convert size string to InstanceSize enum"""
+    if not cloud_providers_available:
+        return None
+    size_map = {
+        "small": InstanceSize.SMALL,
+        "medium": InstanceSize.MEDIUM,
+        "large": InstanceSize.LARGE,
+        "xlarge": InstanceSize.XLARGE,
+    }
+    return size_map.get(size_name.lower())
+
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {
         "status": "running",
         "service": "AI Orchestrator",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "coderunner_base": "enabled",
+        "cloud_providers": cloud_providers_available,
         "features": [
             "code_execution",
             "repository_operations",
-            "multi_repo_scanning"
+            "multi_repo_scanning",
+            "cloud_provider_apis"
         ]
     }
 
@@ -119,12 +183,23 @@ async def root():
 @app.get("/health")
 async def health():
     """Detailed health check"""
+    cloud_status = {}
+    if cloud_providers_available:
+        cloud_manager = get_cloud_manager()
+        cloud_status = {
+            "available": True,
+            "registered_providers": cloud_manager.list_registered_providers()
+        }
+    else:
+        cloud_status = {"available": False, "registered_providers": []}
+    
     return {
         "orchestrator": "healthy",
         "docker": docker_client is not None,
         "coderunner_available": check_coderunner_available(),
         "github_client": github_client is not None,
-        "github_authenticated": github_token is not None
+        "github_authenticated": github_token is not None,
+        "cloud_providers": cloud_status
     }
 
 
@@ -657,6 +732,242 @@ def run_command_in_sandbox(repo_path: str, command: str) -> Dict[str, Any]:
             "success": False,
             "error": str(e)
         }
+
+
+# Cloud Provider API Endpoints
+@app.get("/cloud/providers")
+async def list_cloud_providers():
+    """
+    List supported cloud providers and their status
+    
+    Returns:
+        Dict with supported providers and registered status
+    """
+    if not cloud_providers_available:
+        return {
+            "available": False,
+            "message": "Cloud providers module not available",
+            "supported_providers": ["aws", "azure", "gcp", "digitalocean", "linode"]
+        }
+    
+    cloud_manager = get_cloud_manager()
+    return {
+        "available": True,
+        "supported_providers": ["aws", "azure", "gcp", "digitalocean", "linode"],
+        "registered_providers": cloud_manager.list_registered_providers(),
+        "instance_sizes": ["small", "medium", "large", "xlarge"]
+    }
+
+
+@app.post("/cloud/register")
+async def register_cloud_provider(request: CloudProviderRegisterRequest):
+    """
+    Register and authenticate a cloud provider
+    
+    Args:
+        request: CloudProviderRegisterRequest with provider and credentials
+        
+    Returns:
+        Dict with registration status
+    """
+    if not cloud_providers_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Cloud providers module not available"
+        )
+    
+    try:
+        provider = get_provider_enum(request.provider)
+        
+        if provider is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported provider: {request.provider}. Supported: aws, azure, gcp"
+            )
+        
+        cloud_manager = get_cloud_manager()
+        
+        success = cloud_manager.register_provider(provider, request.credentials)
+        
+        if success:
+            return {
+                "success": True,
+                "provider": request.provider,
+                "message": f"Provider {request.provider} registered successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "provider": request.provider,
+                "message": f"Failed to register provider {request.provider}. Check credentials."
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to register cloud provider: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/cloud/instances", response_model=CloudInstanceResponse)
+async def create_cloud_instance(request: CloudInstanceRequest):
+    """
+    Create a new VPS instance for CodeRunner
+    
+    Args:
+        request: CloudInstanceRequest with provider, name, size, and region
+        
+    Returns:
+        CloudInstanceResponse with instance details
+    """
+    if not cloud_providers_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Cloud providers module not available"
+        )
+    
+    try:
+        provider = get_provider_enum(request.provider)
+        size = get_instance_size_enum(request.size)
+        
+        if provider is None:
+            return CloudInstanceResponse(
+                success=False,
+                error=f"Unsupported provider: {request.provider}"
+            )
+        
+        if size is None:
+            return CloudInstanceResponse(
+                success=False,
+                error=f"Invalid size: {request.size}. Use: small, medium, large, xlarge"
+            )
+        
+        cloud_manager = get_cloud_manager()
+        
+        result = cloud_manager.create_coderunner_instance(
+            provider=provider,
+            name=request.name,
+            size=size,
+            region=request.region
+        )
+        
+        return CloudInstanceResponse(
+            success=result.get("success", False),
+            instance_id=result.get("instance_id"),
+            provider=request.provider,
+            details=result,
+            error=result.get("error")
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to create cloud instance: {e}")
+        return CloudInstanceResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+@app.get("/cloud/instances/{provider}")
+async def list_cloud_instances(provider: str):
+    """
+    List VPS instances for a specific provider
+    
+    Args:
+        provider: Cloud provider name (aws, azure, gcp)
+        
+    Returns:
+        List of instances managed by orchestrator
+    """
+    if not cloud_providers_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Cloud providers module not available"
+        )
+    
+    try:
+        provider_enum = get_provider_enum(provider)
+        
+        if provider_enum is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported provider: {provider}"
+            )
+        
+        cloud_manager = get_cloud_manager()
+        provider_instance = cloud_manager.get_provider(provider_enum)
+        
+        if not provider_instance:
+            return {
+                "provider": provider,
+                "instances": [],
+                "message": f"Provider {provider} not registered"
+            }
+        
+        instances = provider_instance.list_instances()
+        
+        return {
+            "provider": provider,
+            "instances": instances,
+            "count": len(instances)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list cloud instances: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/cloud/instances/{provider}/{instance_id}")
+async def terminate_cloud_instance(provider: str, instance_id: str):
+    """
+    Terminate a VPS instance
+    
+    Args:
+        provider: Cloud provider name
+        instance_id: Instance identifier
+        
+    Returns:
+        Dict with termination status
+    """
+    if not cloud_providers_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Cloud providers module not available"
+        )
+    
+    try:
+        provider_enum = get_provider_enum(provider)
+        
+        if provider_enum is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported provider: {provider}"
+            )
+        
+        cloud_manager = get_cloud_manager()
+        provider_instance = cloud_manager.get_provider(provider_enum)
+        
+        if not provider_instance:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Provider {provider} not registered"
+            )
+        
+        success = provider_instance.terminate_instance(instance_id)
+        
+        return {
+            "success": success,
+            "provider": provider,
+            "instance_id": instance_id,
+            "message": "Instance terminated" if success else "Failed to terminate instance"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to terminate cloud instance: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

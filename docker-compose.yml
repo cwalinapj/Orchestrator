@@ -12,6 +12,7 @@ services:
       - PYTHONUNBUFFERED=1
       - CODERUNNER_HOST=coderunner
       - CODERUNNER_PORT=50051
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     volumes:
       - ./data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -22,7 +23,8 @@ services:
   coderunner:
     image: python:3.11-slim
     container_name: coderunner-sandbox
-    command: tail -f /dev/null
+    command: |
+      sh -c "apt-get update && apt-get install -y git && tail -f /dev/null"
     environment:
       - PYTHONUNBUFFERED=1
     volumes:

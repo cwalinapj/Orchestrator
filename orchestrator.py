@@ -3,6 +3,7 @@
 AI Orchestrator with CodeRunner Base
 Orchestrates AI tasks and executes code in a sandboxed environment
 Supports multi-repository operations for cloning, analyzing, and running code
+Includes cloud pricing monitor for GPU/CPU instances
 """
 
 import os
@@ -11,11 +12,22 @@ import shutil
 import tempfile
 from typing import Dict, Any, Optional, List
 from pathlib import Path
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import docker
 from github import Github, GithubException
 from git import Repo, GitCommandError
+
+from cloud_pricing_monitor import (
+    CloudPricingMonitor,
+    InstanceType,
+    CloudProvider,
+    PriceThreshold,
+    get_monitor
+)
 
 # Configure logging
 logging.basicConfig(
@@ -24,12 +36,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events"""
+    # Startup
+    logger.info("Starting AI Orchestrator...")
+    yield
+    # Shutdown
+    monitor = get_monitor()
+    if monitor.status.is_running:
+        await monitor.stop()
+    logger.info("AI Orchestrator shutdown complete")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AI Orchestrator",
-    description="Orchestrator for AI tasks with CodeRunner base - supports multi-repository operations",
-    version="2.0.0"
+    description="Orchestrator for AI tasks with CodeRunner base - supports multi-repository operations and cloud pricing monitoring",
+    version="2.1.0",
+    lifespan=lifespan
 )
+
+# Mount static files for the pricing monitor UI
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Docker client for CodeRunner interactions
 try:
@@ -103,28 +135,36 @@ class RepositoryBatchResponse(BaseModel):
 @app.get("/")
 async def root():
     """Health check endpoint"""
+    monitor = get_monitor()
     return {
         "status": "running",
         "service": "AI Orchestrator",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "coderunner_base": "enabled",
         "features": [
             "code_execution",
             "repository_operations",
-            "multi_repo_scanning"
-        ]
+            "multi_repo_scanning",
+            "cloud_pricing_monitor"
+        ],
+        "pricing_monitor": {
+            "status": "running" if monitor.status.is_running else "stopped",
+            "ui_url": "/pricing/ui"
+        }
     }
 
 
 @app.get("/health")
 async def health():
     """Detailed health check"""
+    monitor = get_monitor()
     return {
         "orchestrator": "healthy",
         "docker": docker_client is not None,
         "coderunner_available": check_coderunner_available(),
         "github_client": github_client is not None,
-        "github_authenticated": github_token is not None
+        "github_authenticated": github_token is not None,
+        "pricing_monitor_running": monitor.status.is_running
     }
 
 
@@ -657,6 +697,217 @@ def run_command_in_sandbox(repo_path: str, command: str) -> Dict[str, Any]:
             "success": False,
             "error": str(e)
         }
+
+
+# =============================================================================
+# Cloud Pricing Monitor API Endpoints
+# =============================================================================
+
+class PriceThresholdRequest(BaseModel):
+    """Request model for setting price threshold"""
+    instance_type: str  # "gpu" or "cpu"
+    max_price: float
+    auto_launch: bool = False
+    preferred_providers: Optional[List[str]] = None
+
+
+class LaunchRequest(BaseModel):
+    """Request model for launching an instance"""
+    provider: str
+    instance_type: str  # "gpu" or "cpu"
+
+
+@app.get("/pricing/ui")
+async def pricing_ui():
+    """Serve the pricing monitor UI"""
+    ui_path = Path(__file__).parent / "static" / "index.html"
+    if ui_path.exists():
+        return FileResponse(ui_path)
+    raise HTTPException(status_code=404, detail="UI not found")
+
+
+@app.get("/pricing")
+async def get_prices():
+    """Get current prices from all providers"""
+    monitor = get_monitor()
+    
+    # Fetch latest prices if none available
+    if not monitor.current_prices:
+        await monitor.fetch_all_prices()
+    
+    # Get threshold values for the UI
+    gpu_threshold = None
+    cpu_threshold = None
+    if InstanceType.GPU in monitor.thresholds:
+        gpu_threshold = monitor.thresholds[InstanceType.GPU].max_price
+    if InstanceType.CPU in monitor.thresholds:
+        cpu_threshold = monitor.thresholds[InstanceType.CPU].max_price
+    
+    return {
+        "prices": monitor.get_all_prices_dict(),
+        "gpu_threshold": gpu_threshold,
+        "cpu_threshold": cpu_threshold
+    }
+
+
+@app.get("/pricing/status")
+async def get_pricing_status():
+    """Get the current status of the pricing monitor"""
+    monitor = get_monitor()
+    return monitor.get_status()
+
+
+@app.post("/pricing/start")
+async def start_pricing_monitor():
+    """Start the pricing monitor"""
+    monitor = get_monitor()
+    
+    if monitor.status.is_running:
+        return {"success": True, "message": "Monitor is already running"}
+    
+    await monitor.start()
+    logger.info("Pricing monitor started via API")
+    
+    return {"success": True, "message": "Pricing monitor started"}
+
+
+@app.post("/pricing/stop")
+async def stop_pricing_monitor():
+    """Stop the pricing monitor"""
+    monitor = get_monitor()
+    
+    if not monitor.status.is_running:
+        return {"success": True, "message": "Monitor is already stopped"}
+    
+    await monitor.stop()
+    logger.info("Pricing monitor stopped via API")
+    
+    return {"success": True, "message": "Pricing monitor stopped"}
+
+
+@app.post("/pricing/refresh")
+async def refresh_prices():
+    """Manually refresh prices from all providers"""
+    monitor = get_monitor()
+    await monitor.fetch_all_prices()
+    
+    return {
+        "success": True,
+        "message": "Prices refreshed",
+        "price_count": len(monitor.current_prices)
+    }
+
+
+@app.post("/pricing/threshold")
+async def set_price_threshold(request: PriceThresholdRequest):
+    """Set a price threshold for auto-launch"""
+    monitor = get_monitor()
+    
+    # Validate instance type
+    try:
+        instance_type = InstanceType(request.instance_type.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid instance type: {request.instance_type}. Must be 'gpu' or 'cpu'"
+        )
+    
+    # Parse preferred providers if provided
+    preferred_providers = []
+    if request.preferred_providers:
+        for provider_name in request.preferred_providers:
+            try:
+                preferred_providers.append(CloudProvider(provider_name.lower()))
+            except ValueError:
+                logger.warning(f"Ignoring unknown provider: {provider_name}")
+    
+    # Create and set threshold
+    threshold = PriceThreshold(
+        instance_type=instance_type,
+        max_price=request.max_price,
+        auto_launch=request.auto_launch,
+        preferred_providers=preferred_providers
+    )
+    
+    monitor.set_threshold(threshold)
+    logger.info(f"Threshold set for {instance_type.value}: ${request.max_price}/hr (auto_launch={request.auto_launch})")
+    
+    return {
+        "success": True,
+        "message": f"Threshold set for {instance_type.value}",
+        "threshold": {
+            "instance_type": instance_type.value,
+            "max_price": request.max_price,
+            "auto_launch": request.auto_launch
+        }
+    }
+
+
+@app.delete("/pricing/threshold/{instance_type}")
+async def remove_price_threshold(instance_type: str):
+    """Remove a price threshold"""
+    monitor = get_monitor()
+    
+    try:
+        it = InstanceType(instance_type.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid instance type: {instance_type}"
+        )
+    
+    monitor.remove_threshold(it)
+    
+    return {"success": True, "message": f"Threshold removed for {instance_type}"}
+
+
+@app.post("/pricing/launch")
+async def launch_instance(request: LaunchRequest):
+    """Manually launch an instance"""
+    monitor = get_monitor()
+    
+    # Validate instance type
+    try:
+        instance_type = InstanceType(request.instance_type.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid instance type: {request.instance_type}"
+        )
+    
+    # Validate provider
+    try:
+        provider = CloudProvider(request.provider.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider: {request.provider}"
+        )
+    
+    # Find the price for the requested provider and instance type
+    matching_prices = [
+        p for p in monitor.current_prices
+        if p.provider == provider and p.instance_type == instance_type
+    ]
+    
+    if not matching_prices:
+        # Fetch prices if none available
+        await monitor.fetch_all_prices()
+        matching_prices = [
+            p for p in monitor.current_prices
+            if p.provider == provider and p.instance_type == instance_type
+        ]
+    
+    if not matching_prices:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No price found for {provider.value} {instance_type.value}"
+        )
+    
+    price = matching_prices[0]
+    result = await monitor.launch_instance(price)
+    
+    return result
 
 
 if __name__ == "__main__":

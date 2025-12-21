@@ -1,10 +1,10 @@
 # Orchestrator
 
-The AI orchestrator built with CodeRunner base for secure code execution and multi-repository operations.
+The AI orchestrator built with CodeRunner base for secure code execution, multi-repository operations, and cloud pricing monitoring.
 
 ## Overview
 
-This orchestrator provides a secure, sandboxed environment for executing AI-generated code using a CodeRunner base architecture. It uses Docker containers to isolate code execution and provides a REST API for task orchestration across multiple GitHub repositories.
+This orchestrator provides a secure, sandboxed environment for executing AI-generated code using a CodeRunner base architecture. It uses Docker containers to isolate code execution and provides a REST API for task orchestration across multiple GitHub repositories. It also includes a cloud pricing monitor to track GPU and CPU instance prices across major cloud providers.
 
 ## Features
 
@@ -15,6 +15,7 @@ This orchestrator provides a secure, sandboxed environment for executing AI-gene
 - **Docker Compose**: Easy deployment with docker-compose
 - **Multi-language Support**: Extensible for multiple programming languages
 - **GitHub Integration**: Direct integration with GitHub API for repository operations
+- **Cloud Pricing Monitor**: Monitor GPU/CPU instance prices across top 10 cloud providers with auto-launch capabilities
 
 ## Architecture
 
@@ -120,6 +121,44 @@ curl -X POST http://localhost:8080/repositories/batch \
   }'
 ```
 
+### Cloud Pricing Monitor
+
+Access the pricing monitor UI:
+```
+http://localhost:8080/pricing/ui
+```
+
+Get current prices:
+```bash
+curl http://localhost:8080/pricing
+```
+
+Start the monitor (checks every 30 seconds):
+```bash
+curl -X POST http://localhost:8080/pricing/start
+```
+
+Set a price threshold with auto-launch:
+```bash
+curl -X POST http://localhost:8080/pricing/threshold \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instance_type": "gpu",
+    "max_price": 2.00,
+    "auto_launch": true
+  }'
+```
+
+Manually launch an instance:
+```bash
+curl -X POST http://localhost:8080/pricing/launch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "hetzner",
+    "instance_type": "gpu"
+  }'
+```
+
 ## API Endpoints
 
 ### Core Endpoints
@@ -132,6 +171,30 @@ curl -X POST http://localhost:8080/repositories/batch \
 ### Repository Operations
 - `POST /repository` - Process a single repository
 - `POST /repositories/batch` - Process multiple repositories in batch
+
+### Cloud Pricing Monitor
+- `GET /pricing/ui` - Access the pricing monitor web UI
+- `GET /pricing` - Get current prices from all providers
+- `GET /pricing/status` - Get monitor status
+- `POST /pricing/start` - Start the pricing monitor
+- `POST /pricing/stop` - Stop the pricing monitor
+- `POST /pricing/refresh` - Manually refresh prices
+- `POST /pricing/threshold` - Set price threshold for auto-launch
+- `DELETE /pricing/threshold/{instance_type}` - Remove a threshold
+- `POST /pricing/launch` - Manually launch an instance
+
+### Supported Cloud Providers
+The pricing monitor tracks instances from these top 10 cloud providers:
+- AWS (Amazon Web Services)
+- GCP (Google Cloud Platform)
+- Azure (Microsoft Azure)
+- Digital Ocean
+- Linode
+- Vultr
+- OVH
+- Hetzner
+- Oracle Cloud
+- IBM Cloud
 
 ### Supported Operations
 - `clone_and_analyze` - Clone and analyze repository structure
@@ -162,12 +225,15 @@ The CodeRunner sandbox container is configured with:
 
 ```
 Orchestrator/
-├── orchestrator.py      # Main orchestrator application
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Orchestrator container definition
-├── docker-compose.yml  # Multi-container setup
-├── .gitignore         # Git ignore patterns
-└── README.md          # This file
+├── orchestrator.py           # Main orchestrator application
+├── cloud_pricing_monitor.py  # Cloud pricing monitor module
+├── requirements.txt          # Python dependencies
+├── Dockerfile               # Orchestrator container definition
+├── docker-compose.yml       # Multi-container setup
+├── static/                  # Web UI files
+│   └── index.html          # Pricing monitor UI
+├── .gitignore              # Git ignore patterns
+└── README.md               # This file
 ```
 
 ### Adding New Features

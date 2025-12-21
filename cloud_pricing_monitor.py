@@ -16,7 +16,7 @@ import asyncio
 import logging
 import random
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -93,15 +93,15 @@ class CloudPricingMonitor:
         """
         self.check_interval = check_interval
         self.status = MonitorStatus(check_interval_seconds=check_interval)
-        self.current_prices: list[InstancePrice] = []
-        self.thresholds: dict[InstanceType, PriceThreshold] = {}
+        self.current_prices: List[InstancePrice] = []
+        self.thresholds: Dict[InstanceType, PriceThreshold] = {}
         self._monitor_task: Optional[asyncio.Task] = None
-        self._callbacks: list[Callable] = []
+        self._callbacks: List[Callable] = []
         
         # Base prices for simulation (will fluctuate)
         self._base_prices = self._initialize_base_prices()
     
-    def _initialize_base_prices(self) -> dict:
+    def _initialize_base_prices(self) -> Dict[str, Any]:
         """Initialize base prices for simulation"""
         return {
             CloudProvider.AWS: {
@@ -156,7 +156,7 @@ class CloudPricingMonitor:
         variation = random.uniform(-0.15, 0.15)
         return round(base_price * (1 + variation), 4)
     
-    async def fetch_all_prices(self) -> list[InstancePrice]:
+    async def fetch_all_prices(self) -> List[InstancePrice]:
         """
         Fetch current prices from all providers.
         
@@ -186,7 +186,7 @@ class CloudPricingMonitor:
         self.current_prices = prices
         return prices
     
-    def get_prices_by_type(self, instance_type: InstanceType) -> list[InstancePrice]:
+    def get_prices_by_type(self, instance_type: InstanceType) -> List[InstancePrice]:
         """Get current prices filtered by instance type"""
         return [p for p in self.current_prices if p.instance_type == instance_type]
     
@@ -208,7 +208,7 @@ class CloudPricingMonitor:
             del self.thresholds[instance_type]
             logger.info(f"Removed threshold for {instance_type.value}")
     
-    def check_thresholds(self) -> list[InstancePrice]:
+    def check_thresholds(self) -> List[InstancePrice]:
         """Check if any prices are below thresholds"""
         matches = []
         
@@ -226,7 +226,7 @@ class CloudPricingMonitor:
         
         return matches
     
-    async def launch_instance(self, price: InstancePrice) -> dict[str, Any]:
+    async def launch_instance(self, price: InstancePrice) -> Dict[str, Any]:
         """
         Launch a cloud instance.
         
@@ -315,7 +315,7 @@ class CloudPricingMonitor:
             
             await asyncio.sleep(self.check_interval)
     
-    def _price_to_dict(self, price: InstancePrice) -> dict:
+    def _price_to_dict(self, price: InstancePrice) -> Dict[str, Any]:
         """Convert InstancePrice to dictionary"""
         return {
             "provider": price.provider.value,
@@ -350,7 +350,7 @@ class CloudPricingMonitor:
             self._monitor_task = None
         logger.info("Pricing monitor stopped")
     
-    def get_status(self) -> dict:
+    def get_status(self) -> Dict[str, Any]:
         """Get current monitor status"""
         return {
             "is_running": self.status.is_running,
@@ -368,7 +368,7 @@ class CloudPricingMonitor:
             }
         }
     
-    def get_all_prices_dict(self) -> list[dict]:
+    def get_all_prices_dict(self) -> List[Dict[str, Any]]:
         """Get all current prices as dictionaries"""
         return [self._price_to_dict(p) for p in self.current_prices]
 

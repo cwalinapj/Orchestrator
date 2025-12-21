@@ -536,7 +536,9 @@
     </div>
 
     <script>
-        const API_BASE = '';
+        // API base URL - uses current origin for same-origin deployment
+        // Can be overridden via window.API_BASE_URL for different deployment scenarios
+        const API_BASE = window.API_BASE_URL || '';
         let currentTab = 'gpu';
         let pollInterval = null;
 
@@ -672,13 +674,6 @@
                 addLog('Monitor started', 'success');
                 fetchStatus();
                 
-                // Start polling for updates
-                if (pollInterval) clearInterval(pollInterval);
-                pollInterval = setInterval(() => {
-                    fetchStatus();
-                    fetchPrices();
-                }, 5000);
-                
             } catch (error) {
                 addLog('Failed to start monitor: ' + error.message, 'error');
             }
@@ -781,11 +776,12 @@
             fetchPrices();
             addLog('Cloud Pricing Monitor UI loaded');
             
-            // Poll every 5 seconds when page is active
+            // Start polling with a reasonable interval (10 seconds)
+            // This is cleared and restarted when monitor starts
             pollInterval = setInterval(() => {
                 fetchStatus();
                 fetchPrices();
-            }, 5000);
+            }, 10000);
         });
     </script>
 </body>

@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Pricing Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: #00d9ff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #00ff88;
+        }
+
+        .status-dot.inactive {
+            background: #ff4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff, #0099cc);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            color: #1a1a2e;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .threshold-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .threshold-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .threshold-card h3 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .threshold-card h3 .icon {
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .price-display {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .price-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .price-unit {
+            color: #888;
+        }
+
+        .prices-section {
+            margin-bottom: 30px;
+        }
+
+        .prices-section h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: rgba(0, 217, 255, 0.2);
+            border-color: #00d9ff;
+            color: #00d9ff;
+        }
+
+        .tab-btn:hover:not(.active) {
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+        }
+
+        .prices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .price-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .price-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(0, 217, 255, 0.3);
+        }
+
+        .price-card.cheapest {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .price-card.below-threshold {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .price-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .provider-name {
+            font-weight: 600;
+            color: #fff;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        .provider-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .provider-badge.cheapest {
+            background: #00ff88;
+            color: #1a1a2e;
+        }
+
+        .provider-badge.match {
+            background: #ffaa00;
+            color: #1a1a2e;
+        }
+
+        .instance-name {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .price-card-price {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+
+        .specs-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .spec-tag {
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .launch-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #00d9ff, #0099cc);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .launch-btn:hover {
+            background: linear-gradient(135deg, #00eeff, #00aadd);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 30px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-value {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+
+        .logs-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .logs-section h3 {
+            color: #00d9ff;
+            margin-bottom: 15px;
+        }
+
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #666;
+        }
+
+        .log-message {
+            color: #aaa;
+        }
+
+        .log-message.success {
+            color: #00ff88;
+        }
+
+        .log-message.warning {
+            color: #ffaa00;
+        }
+
+        .log-message.error {
+            color: #ff4444;
+        }
+
+        .no-prices {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .threshold-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .stats-bar {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>☁️ Cloud Pricing Monitor</h1>
+            <p>Monitor GPU & CPU instance pricing across top 10 cloud providers</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot inactive"></div>
+                <span id="statusText">Monitor Stopped</span>
+            </div>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span>Last Check:</span>
+                    <span id="lastCheck" class="stat-value">Never</span>
+                </div>
+                <div class="stat-item">
+                    <span>Total Checks:</span>
+                    <span id="totalChecks" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Launches:</span>
+                    <span id="launchCount" class="stat-value">0</span>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="startBtn" class="btn btn-success" onclick="startMonitor()">Start Monitor</button>
+                <button id="stopBtn" class="btn btn-danger" onclick="stopMonitor()" disabled>Stop Monitor</button>
+                <button id="refreshBtn" class="btn btn-primary" onclick="refreshPrices()">Refresh Now</button>
+            </div>
+        </div>
+
+        <div class="threshold-section">
+            <div class="threshold-card">
+                <h3><span class="icon">🎮</span> GPU Instance Threshold</h3>
+                <div class="form-group">
+                    <label>Maximum Price ($/hour)</label>
+                    <input type="number" id="gpuThreshold" step="0.01" min="0" value="2.00" placeholder="e.g., 2.00">
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="gpuAutoLaunch">
+                        <label for="gpuAutoLaunch">Auto-launch when price drops below threshold</label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="setThreshold('gpu')">Set GPU Threshold</button>
+                <div class="price-display">
+                    <span class="price-value" id="gpuCheapest">--</span>
+                    <span class="price-unit">$/hr cheapest</span>
+                </div>
+            </div>
+
+            <div class="threshold-card">
+                <h3><span class="icon">💻</span> CPU Instance Threshold</h3>
+                <div class="form-group">
+                    <label>Maximum Price ($/hour)</label>
+                    <input type="number" id="cpuThreshold" step="0.01" min="0" value="0.30" placeholder="e.g., 0.30">
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="cpuAutoLaunch">
+                        <label for="cpuAutoLaunch">Auto-launch when price drops below threshold</label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="setThreshold('cpu')">Set CPU Threshold</button>
+                <div class="price-display">
+                    <span class="price-value" id="cpuCheapest">--</span>
+                    <span class="price-unit">$/hr cheapest</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="prices-section">
+            <h2>Current Prices</h2>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab('gpu')">GPU Instances</button>
+                <button class="tab-btn" onclick="showTab('cpu')">CPU Instances</button>
+            </div>
+            <div id="gpuPrices" class="prices-grid">
+                <div class="no-prices">Click "Refresh Now" or start the monitor to fetch prices</div>
+            </div>
+            <div id="cpuPrices" class="prices-grid" style="display: none;">
+                <div class="no-prices">Click "Refresh Now" or start the monitor to fetch prices</div>
+            </div>
+        </div>
+
+        <div class="logs-section">
+            <h3>📋 Activity Log</h3>
+            <div id="logContainer">
+                <div class="log-entry">
+                    <span class="log-time">[--:--:--]</span>
+                    <span class="log-message">Waiting for monitor to start...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - uses current origin for same-origin deployment
+        // Can be overridden via window.API_BASE_URL for different deployment scenarios
+        const API_BASE = window.API_BASE_URL || '';
+        let currentTab = 'gpu';
+        let pollInterval = null;
+
+        function formatTime(date) {
+            return date ? new Date(date).toLocaleTimeString() : 'Never';
+        }
+
+        function addLog(message, type = '') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const now = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${now}]</span> <span class="log-message ${type}">${message}</span>`;
+            container.insertBefore(entry, container.firstChild);
+            
+            // Keep only last 50 logs
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/pricing/status`);
+                const status = await response.json();
+                
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                
+                if (status.is_running) {
+                    dot.className = 'status-dot active';
+                    text.textContent = 'Monitor Running';
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                } else {
+                    dot.className = 'status-dot inactive';
+                    text.textContent = 'Monitor Stopped';
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                }
+                
+                document.getElementById('lastCheck').textContent = formatTime(status.last_check);
+                document.getElementById('totalChecks').textContent = status.total_checks;
+                document.getElementById('launchCount').textContent = status.launches_triggered;
+                
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+            }
+        }
+
+        async function fetchPrices() {
+            try {
+                const response = await fetch(`${API_BASE}/pricing`);
+                const data = await response.json();
+                
+                renderPrices(data.prices, data.gpu_threshold, data.cpu_threshold);
+                
+            } catch (error) {
+                console.error('Failed to fetch prices:', error);
+            }
+        }
+
+        function renderPrices(prices, gpuThreshold, cpuThreshold) {
+            const gpuPrices = prices.filter(p => p.instance_type === 'gpu')
+                .sort((a, b) => a.price_per_hour - b.price_per_hour);
+            const cpuPrices = prices.filter(p => p.instance_type === 'cpu')
+                .sort((a, b) => a.price_per_hour - b.price_per_hour);
+            
+            // Update cheapest displays
+            if (gpuPrices.length > 0) {
+                document.getElementById('gpuCheapest').textContent = `$${gpuPrices[0].price_per_hour.toFixed(4)}`;
+            }
+            if (cpuPrices.length > 0) {
+                document.getElementById('cpuCheapest').textContent = `$${cpuPrices[0].price_per_hour.toFixed(4)}`;
+            }
+            
+            // Render GPU prices
+            document.getElementById('gpuPrices').innerHTML = gpuPrices.length === 0 
+                ? '<div class="no-prices">No GPU prices available</div>'
+                : gpuPrices.map((p, i) => renderPriceCard(p, i === 0, gpuThreshold)).join('');
+            
+            // Render CPU prices
+            document.getElementById('cpuPrices').innerHTML = cpuPrices.length === 0
+                ? '<div class="no-prices">No CPU prices available</div>'
+                : cpuPrices.map((p, i) => renderPriceCard(p, i === 0, cpuThreshold)).join('');
+        }
+
+        function renderPriceCard(price, isCheapest, threshold) {
+            const belowThreshold = threshold && price.price_per_hour <= threshold;
+            let cardClass = 'price-card';
+            if (isCheapest) cardClass += ' cheapest';
+            else if (belowThreshold) cardClass += ' below-threshold';
+            
+            let badge = '';
+            if (isCheapest) badge = '<span class="provider-badge cheapest">CHEAPEST</span>';
+            else if (belowThreshold) badge = '<span class="provider-badge match">BELOW THRESHOLD</span>';
+            
+            const specs = price.specs || {};
+            let specsHtml = '';
+            if (specs.gpu) specsHtml += `<span class="spec-tag">${specs.gpu}</span>`;
+            if (specs.vcpu) specsHtml += `<span class="spec-tag">${specs.vcpu} vCPU</span>`;
+            if (specs.ram_gb) specsHtml += `<span class="spec-tag">${specs.ram_gb} GB RAM</span>`;
+            
+            return `
+                <div class="${cardClass}">
+                    <div class="price-card-header">
+                        <span class="provider-name">${price.provider}</span>
+                        ${badge}
+                    </div>
+                    <div class="instance-name">${price.instance_name}</div>
+                    <div class="price-card-price">$${price.price_per_hour.toFixed(4)}/hr</div>
+                    <div class="specs-list">${specsHtml}</div>
+                    <button class="launch-btn" onclick="launchInstance('${price.provider}', '${price.instance_type}')">
+                        🚀 Launch Instance
+                    </button>
+                </div>
+            `;
+        }
+
+        function showTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-btn:${tab === 'gpu' ? 'first-child' : 'last-child'}`).classList.add('active');
+            
+            document.getElementById('gpuPrices').style.display = tab === 'gpu' ? 'grid' : 'none';
+            document.getElementById('cpuPrices').style.display = tab === 'cpu' ? 'grid' : 'none';
+        }
+
+        async function startMonitor() {
+            try {
+                const response = await fetch(`${API_BASE}/pricing/start`, { method: 'POST' });
+                const result = await response.json();
+                addLog('Monitor started', 'success');
+                fetchStatus();
+                
+            } catch (error) {
+                addLog('Failed to start monitor: ' + error.message, 'error');
+            }
+        }
+
+        async function stopMonitor() {
+            try {
+                const response = await fetch(`${API_BASE}/pricing/stop`, { method: 'POST' });
+                const result = await response.json();
+                addLog('Monitor stopped', 'warning');
+                fetchStatus();
+                
+                if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                }
+                
+            } catch (error) {
+                addLog('Failed to stop monitor: ' + error.message, 'error');
+            }
+        }
+
+        async function refreshPrices() {
+            try {
+                addLog('Refreshing prices...');
+                const response = await fetch(`${API_BASE}/pricing/refresh`, { method: 'POST' });
+                const result = await response.json();
+                addLog('Prices refreshed', 'success');
+                fetchPrices();
+                fetchStatus();
+            } catch (error) {
+                addLog('Failed to refresh prices: ' + error.message, 'error');
+            }
+        }
+
+        async function setThreshold(type) {
+            const input = document.getElementById(`${type}Threshold`);
+            const autoLaunch = document.getElementById(`${type}AutoLaunch`);
+            const maxPrice = parseFloat(input.value);
+            
+            if (isNaN(maxPrice) || maxPrice <= 0) {
+                addLog('Please enter a valid price threshold', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/pricing/threshold`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        instance_type: type,
+                        max_price: maxPrice,
+                        auto_launch: autoLaunch.checked
+                    })
+                });
+                
+                const result = await response.json();
+                addLog(`${type.toUpperCase()} threshold set to $${maxPrice}/hr${autoLaunch.checked ? ' (auto-launch enabled)' : ''}`, 'success');
+                fetchPrices();
+                
+            } catch (error) {
+                addLog('Failed to set threshold: ' + error.message, 'error');
+            }
+        }
+
+        async function launchInstance(provider, instanceType) {
+            if (!confirm(`Launch a ${instanceType.toUpperCase()} instance on ${provider.toUpperCase()}?`)) {
+                return;
+            }
+            
+            try {
+                addLog(`Launching ${instanceType} instance on ${provider}...`);
+                const response = await fetch(`${API_BASE}/pricing/launch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: provider,
+                        instance_type: instanceType
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(`✅ Instance launched: ${result.instance_id} on ${result.provider}`, 'success');
+                } else {
+                    addLog(`❌ Launch failed: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                fetchStatus();
+                
+            } catch (error) {
+                addLog('Failed to launch instance: ' + error.message, 'error');
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStatus();
+            fetchPrices();
+            addLog('Cloud Pricing Monitor UI loaded');
+            
+            // Start polling with a reasonable interval (10 seconds)
+            // This is cleared and restarted when monitor starts
+            pollInterval = setInterval(() => {
+                fetchStatus();
+                fetchPrices();
+            }, 10000);
+        });
+    </script>
+</body>
+</html>

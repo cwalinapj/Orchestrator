@@ -145,7 +145,7 @@ curl -X POST http://localhost:8080/execute \
 - Provide both web UI and desktop UI
 
 ### Supported Providers
-AWS, GCP, Azure, Digital Ocean, Linode, Vultr, OVH, Hetzner, Oracle Cloud, IBM Cloud
+AWS, GCP, Azure, Digital Ocean, Linode, Vultr, OVH, Hetzner, Oracle, IBM
 
 ## File Structure
 
@@ -193,9 +193,9 @@ Orchestrator/
 
 ### Adding New Dependencies
 - Add to `requirements.txt` with appropriate version constraints
-- Use `~=` for compatible release constraints (allows patch-level updates)
-- Use `==` to pin exact versions when reproducibility is critical
-- Avoid `>=` to prevent dependency conflicts and unpredictable builds
+- **Best practice**: Use `~=` for compatible release constraints (allows patch-level updates) or `==` to pin exact versions when reproducibility is critical
+- **Current state**: The repository currently uses `>=` constraints; consider migrating to `~=` or `==` when updating dependencies
+- Avoid open-ended `>=` constraints in production to prevent dependency conflicts
 - Document why the dependency is needed
 - Consider security and maintenance implications
 

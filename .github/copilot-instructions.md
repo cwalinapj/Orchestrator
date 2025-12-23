@@ -15,7 +15,7 @@ This is an AI orchestrator with CodeRunner base for secure code execution, multi
 
 ## Architecture
 
-The system has two main components:
+The system has three main components:
 1. **Orchestrator Service**: FastAPI application managing tasks and repository operations
 2. **CodeRunner Sandbox**: Isolated Docker container for secure code execution
 3. **Cloud Pricing Monitor**: Module for monitoring GPU/CPU instance prices across providers

@@ -11,7 +11,7 @@ This is an AI orchestrator with CodeRunner base for secure code execution, multi
 - **Container Runtime**: Docker
 - **GitHub Integration**: PyGithub, GitPython
 - **Dependencies**: See `requirements.txt`
-- **UI**: Web (HTML/JavaScript) and Desktop (tkinter)
+- **UI**: Web interface (HTML/CSS/JS via FastAPI static files) and Desktop (tkinter)
 
 ## Architecture
 
@@ -154,11 +154,17 @@ Orchestrator/
 ├── orchestrator.py           # Main FastAPI application
 ├── cloud_pricing_monitor.py  # Pricing monitor module
 ├── pricing_monitor_ui.py     # Desktop UI (tkinter)
+├── examples.py              # Example usage code
 ├── requirements.txt          # Python dependencies
 ├── Dockerfile               # Container definition
 ├── docker-compose.yml       # Multi-container setup
+├── README.md                # Project documentation
+├── LICENSE                  # License file
+├── .gitignore              # Git ignore patterns
+├── .github/                 # GitHub configuration
 ├── static/                  # Web UI static files
 ├── data/                    # Data directory
+├── docs/                    # Documentation files
 └── sandbox/                 # Sandbox-related files
 ```
 
@@ -186,8 +192,9 @@ Orchestrator/
 ## Dependencies
 
 ### Adding New Dependencies
-- Add to `requirements.txt` with version constraints
-- Use `>=` for minimum version requirements
+- Add to `requirements.txt` with appropriate version constraints
+- Use `~=` for compatible release constraints or pin exact versions for reproducible builds
+- Prefer `~=` over `>=` to avoid dependency conflicts and unpredictable builds
 - Document why the dependency is needed
 - Consider security and maintenance implications
 

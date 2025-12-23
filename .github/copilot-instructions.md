@@ -193,8 +193,9 @@ Orchestrator/
 
 ### Adding New Dependencies
 - Add to `requirements.txt` with appropriate version constraints
-- Use `~=` for compatible release constraints or pin exact versions for reproducible builds
-- Prefer `~=` over `>=` to avoid dependency conflicts and unpredictable builds
+- Use `~=` for compatible release constraints (allows patch-level updates)
+- Use `==` to pin exact versions when reproducibility is critical
+- Avoid `>=` to prevent dependency conflicts and unpredictable builds
 - Document why the dependency is needed
 - Consider security and maintenance implications
 

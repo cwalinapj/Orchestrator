@@ -22,7 +22,7 @@ Before setting up the secret, you need to obtain an OpenAI API key:
 #### For Repository Owners/Administrators
 
 1. **Navigate to Repository Settings**
-   - Go to your GitHub repository: https://github.com/cwalinapj/Orchestrator
+   - Go to your GitHub repository page
    - Click on **Settings** tab (you need admin access to see this)
 
 2. **Access Secrets and Variables**

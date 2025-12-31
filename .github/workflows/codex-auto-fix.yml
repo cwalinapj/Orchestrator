@@ -23,7 +23,19 @@ jobs:
       - name: Check OpenAI API Key
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY secret is not set. Skipping auto-fix." >&2
+            echo "❌ ERROR: OPENAI_API_KEY secret is not configured." >&2
+            echo "" >&2
+            echo "The codex-auto-fix workflow requires an OpenAI API key to function." >&2
+            echo "Please configure the OPENAI_API_KEY secret in your repository settings." >&2
+            echo "" >&2
+            echo "📖 For detailed instructions, see:" >&2
+            echo "   https://github.com/cwalinapj/Orchestrator/blob/main/docs/GITHUB_SECRETS.md" >&2
+            echo "" >&2
+            echo "Quick steps:" >&2
+            echo "1. Get an API key from https://platform.openai.com/api-keys" >&2
+            echo "2. Go to Settings → Secrets and variables → Actions" >&2
+            echo "3. Add a new secret named OPENAI_API_KEY with your API key" >&2
+            echo "" >&2
             exit 1
           fi
 

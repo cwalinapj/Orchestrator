@@ -226,6 +226,8 @@ The pricing monitor tracks instances from these top 10 cloud providers:
 
 ## Configuration
 
+### Environment Variables
+
 Environment variables can be set in `docker-compose.yml` or `.env` file:
 
 - `PORT`: Orchestrator API port (default: 8080)
@@ -233,6 +235,22 @@ Environment variables can be set in `docker-compose.yml` or `.env` file:
 - `CODERUNNER_PORT`: CodeRunner service port
 - `PYTHONUNBUFFERED`: Enable unbuffered Python output
 - `GITHUB_TOKEN`: GitHub personal access token for authenticated API access (optional)
+
+### GitHub Secrets
+
+The repository uses GitHub Secrets for sensitive configuration in workflows:
+
+- **`OPENAI_API_KEY`**: Required for the `codex-auto-fix.yml` workflow to automatically fix failing CI checks using OpenAI's API.
+
+**To configure GitHub Secrets:**
+
+See the detailed guide: [docs/GITHUB_SECRETS.md](docs/GITHUB_SECRETS.md)
+
+Quick steps:
+1. Get an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Go to your repository **Settings** → **Secrets and variables** → **Actions**
+3. Click **"New repository secret"**
+4. Add `OPENAI_API_KEY` with your OpenAI API key as the value
 
 ## Security
 

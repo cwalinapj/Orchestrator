@@ -1,0 +1,120 @@
+# SOC Computer Price Monitor - Cron Configuration
+# ================================================
+#
+# This file contains cron schedule configurations for the SOC price monitor.
+# 
+# To install the cron job, add the following line to your crontab:
+#   crontab -e
+#
+# Then add one of the schedules below.
+#
+# The script monitors SOC computers (like Raspberry Pi) from top US retailers
+# and alerts when products are more than 33% below median pricing.
+#
+# Note: No pricing data is stored - all processing is done in memory.
+
+# ============================================================================
+# RECOMMENDED SCHEDULES
+# ============================================================================
+
+# Option 1: Run every 6 hours (recommended for regular monitoring)
+# This provides a good balance between staying updated and avoiding rate limits
+# 
+# 0 */6 * * * /usr/bin/python3 /path/to/Orchestrator/soc_price_monitor.py >> /var/log/soc_price_monitor.log 2>&1
+
+# Option 2: Run every hour during business hours (9 AM - 9 PM)
+# Good for catching flash sales during peak shopping times
+#
+# 0 9-21 * * * /usr/bin/python3 /path/to/Orchestrator/soc_price_monitor.py >> /var/log/soc_price_monitor.log 2>&1
+
+# Option 3: Run 4 times daily at specific times
+# Optimal for catching morning deals, lunch specials, afternoon drops, and evening sales
+#
+# 0 8,12,17,21 * * * /usr/bin/python3 /path/to/Orchestrator/soc_price_monitor.py >> /var/log/soc_price_monitor.log 2>&1
+
+# Option 4: Run twice daily (morning and evening)
+# Lower frequency for basic monitoring
+#
+# 0 8,20 * * * /usr/bin/python3 /path/to/Orchestrator/soc_price_monitor.py >> /var/log/soc_price_monitor.log 2>&1
+
+# ============================================================================
+# INSTALLATION INSTRUCTIONS
+# ============================================================================
+#
+# 1. Copy the soc_price_monitor.py to your desired location
+#
+# 2. Ensure Python 3.8+ is installed and note the path:
+#    which python3
+#
+# 3. Edit your crontab:
+#    crontab -e
+#
+# 4. Add your preferred schedule (replace /path/to with actual path):
+#    0 */6 * * * /usr/bin/python3 /home/user/Orchestrator/soc_price_monitor.py >> /var/log/soc_price_monitor.log 2>&1
+#
+# 5. (Optional) Create the log file with proper permissions:
+#    sudo touch /var/log/soc_price_monitor.log
+#    sudo chown $USER:$USER /var/log/soc_price_monitor.log
+#
+# 6. Verify the cron job is installed:
+#    crontab -l
+#
+# ============================================================================
+# DOCKER USAGE
+# ============================================================================
+#
+# If running in Docker, use the docker-compose setup which includes built-in
+# scheduling, or run manually with:
+#
+# docker-compose exec orchestrator python soc_price_monitor.py
+#
+# For scheduled execution in Docker, consider using:
+# - Kubernetes CronJobs
+# - AWS ECS Scheduled Tasks
+# - Docker Swarm with cron in the container
+#
+# ============================================================================
+# SYSTEMD TIMER (ALTERNATIVE TO CRON)
+# ============================================================================
+#
+# For systems using systemd, you can create a timer unit:
+#
+# /etc/systemd/system/soc-price-monitor.service:
+# [Unit]
+# Description=SOC Computer Price Monitor
+# 
+# [Service]
+# Type=oneshot
+# ExecStart=/usr/bin/python3 /path/to/Orchestrator/soc_price_monitor.py
+# User=your_user
+#
+# /etc/systemd/system/soc-price-monitor.timer:
+# [Unit]
+# Description=Run SOC Price Monitor every 6 hours
+# 
+# [Timer]
+# OnCalendar=*-*-* 00/6:00:00
+# Persistent=true
+# 
+# [Install]
+# WantedBy=timers.target
+#
+# Enable with:
+# sudo systemctl enable --now soc-price-monitor.timer
+#
+# ============================================================================
+# LOGGING AND MONITORING
+# ============================================================================
+#
+# Log rotation can be configured with logrotate:
+#
+# /etc/logrotate.d/soc_price_monitor:
+# /var/log/soc_price_monitor.log {
+#     daily
+#     rotate 7
+#     compress
+#     missingok
+#     notifempty
+#     create 644 user user
+# }
+#
